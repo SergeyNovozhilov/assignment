@@ -1,21 +1,19 @@
 package com.luxoft.assignment.manager;
 
-import com.luxoft.assignment.dao.ElvlDao;
 import com.luxoft.assignment.dao.QuoteDao;
-import com.luxoft.assignment.domain.Elvl;
-import com.luxoft.assignment.domain.Isin;
-import com.luxoft.assignment.model.ElvlModel;
-import com.luxoft.assignment.model.QuoteModel;
+import com.luxoft.assignment.model.Elvl;
+import com.luxoft.assignment.model.Quote;
+import com.luxoft.assignment.util.Util;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentMap;
 
 import static com.luxoft.assignment.cache.CacheConfig.ELVL_CACHE;
 
@@ -26,86 +24,61 @@ public class ManagerImpl implements Manager{
     private static final Logger LOGGER = LoggerFactory.getLogger(Manager.class);
 
     private QuoteDao quoteDao;
-    private ElvlDao elvlDao;
     private CacheManager cacheManager;
 
-    public ManagerImpl(QuoteDao quoteDao, ElvlDao elvlDao, CacheManager cacheManager) {
+    public ManagerImpl(QuoteDao quoteDao, CacheManager cacheManager) {
         this.quoteDao = quoteDao;
-        this.elvlDao = elvlDao;
         this.cacheManager = cacheManager;
     }
 
     @Override
-    public CompletableFuture<List<ElvlModel>> get() {
+    public Collection<Elvl> get() {
         LOGGER.info("Request to get a list of elvl's");
-        final List<ElvlModel> elvlModels = elvlDao.get();
-        return CompletableFuture.completedFuture(elvlModels);
+        ConcurrentMap<String, Elvl> map = (ConcurrentMap<String, Elvl>)cacheManager.getCache(ELVL_CACHE).getNativeCache();
+        return map.values();
     }
 
     @Override
-    @Transactional(readOnly = true)
-    @Async
-    public CompletableFuture<ElvlModel> get(String isin) {
-        LOGGER.info("Request to get elvlModel by isin");
-        final ElvlModel elvlModel = elvlDao.get(isin);
-        return CompletableFuture.completedFuture(elvlModel);
+    public Elvl get(String isin) {
+        LOGGER.info("Request to get elvl by isin");
+        final Elvl elvl = cacheManager.getCache(ELVL_CACHE).get(isin, Elvl.class);
+        return elvl;
     }
 
     @Override
-    @Transactional
     @Async
-    public CompletableFuture<Boolean> add(QuoteModel quoteModel) {
-        return CompletableFuture.completedFuture(processQuote(quoteModel));
+    public CompletableFuture<Boolean> add(Quote quote) {
+        LOGGER.info("Request to add quote");
+        if (!checkQuote(quote)) {
+            return CompletableFuture.supplyAsync(() -> false);
+        }
+        processQuote(quote);
+        quoteDao.add(quote);
+        return CompletableFuture.supplyAsync(() -> true);
     }
 
-    private boolean processQuote(QuoteModel quoteModel) {
-        if (!checkQuote(quoteModel)) {
-            return false;
-        };
-        ElvlModel elvlModel;
-        Cache cache = cacheManager.getCache(ELVL_CACHE);
-        Cache.ValueWrapper wrapper = cache.get(quoteModel.getIsin());
-        if(wrapper == null) {
-            Isin isin = new Isin(quoteModel.getIsin());
-            elvlModel = new ElvlModel();
-            elvlModel.setIsin(quoteModel.getIsin());
-            setElvl(true, elvlModel, quoteModel);
-            elvlDao.add(isin);
-            elvlDao.add(new Elvl(isin.getId(), elvlModel.getElvl()));
+    private synchronized void processQuote(Quote quote) {
+        Elvl elvl = cacheManager.getCache(ELVL_CACHE).get(quote.getIsin(), Elvl.class);
+        if(elvl == null) {
+            elvl = new Elvl();
+            elvl.setIsin(quote.getIsin());
+            Util.setElvl(true, elvl, quote);
         } else {
-            elvlModel = (ElvlModel)wrapper.get();
-            setElvl(false, elvlModel, quoteModel);
-            elvlDao.update(elvlModel);
+            Util.setElvl(false, elvl, quote);
         }
-        quoteDao.add(quoteModel);
-        cache.put(elvlModel .getIsin(), elvlModel);
-
-        return true;
+        cacheManager.getCache(ELVL_CACHE).put(elvl.getIsin(), elvl);
     }
 
-    private void setElvl(boolean isNew, ElvlModel elvlModel, QuoteModel quoteModel) {
-        if (isNew) {
-            elvlModel.setElvl(quoteModel.getBid() != null ? quoteModel.getBid() : quoteModel.getAsk());
-            return;
+    private boolean checkQuote(Quote quote) {
+        String message = "";
+        if (quote.getIsin().length() != ISIN_LENGTH) {
+            message = "Isin length is incorrect.";
         }
-        if (quoteModel.getBid() == null) {
-            elvlModel.setElvl(quoteModel.getAsk());
-            return;
+        if (quote.getBid() != null && Double.compare(quote.getBid(), quote.getAsk()) >= 0) {
+            message.concat(" Bid is greater then ask");
         }
-        if (Double.compare(quoteModel.getBid(), elvlModel.getElvl()) > 0) {
-            elvlModel.setElvl(quoteModel.getBid());
-            return;
-        }
-        if (Double.compare(quoteModel.getAsk(), elvlModel.getElvl()) < 0) {
-            elvlModel.setElvl(quoteModel.getAsk());
-        }
-    }
-
-    private boolean checkQuote(QuoteModel quoteModel) {
-        if (quoteModel.getIsin().length() != ISIN_LENGTH) {
-            return false;
-        }
-        if (quoteModel.getBid() != null && Double.compare(quoteModel.getBid(), quoteModel.getAsk()) >= 0) {
+        if (StringUtils.isNotEmpty(message)) {
+            LOGGER.error(message);
             return false;
         }
         return true;

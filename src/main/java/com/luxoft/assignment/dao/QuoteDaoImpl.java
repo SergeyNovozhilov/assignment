@@ -1,11 +1,11 @@
 package com.luxoft.assignment.dao;
 
 import com.luxoft.assignment.mapper.QouteMapper;
-import com.luxoft.assignment.model.QuoteModel;
+import com.luxoft.assignment.model.Quote;
 import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
 import java.util.*;
@@ -20,7 +20,8 @@ public class QuoteDaoImpl implements QuoteDao {
     }
 
     @Override
-    public void add(QuoteModel quote) {
+    @Transactional
+    public void add(Quote quote) {
         Map<String, Object> params = new HashMap<>();
         params.put("id", UUID.randomUUID());
         params.put("isin", quote.getIsin());
@@ -28,14 +29,14 @@ public class QuoteDaoImpl implements QuoteDao {
         params.put("ask", quote.getAsk());
         params.put("stmp", new Timestamp(new Date().getTime()));
 
-        jdbc.update("insert into QOUTES (id, isin, bid, ask, stmp) " +
-                "values (:id, (select id from ISINS where isin = :isin), :bid, :ask, :stmp)", params);
+        jdbc.update("insert into QUOTES (id, isin, bid, ask, stmp) " +
+                "values (:id, :isin, :bid, :ask, :stmp)", params);
     }
 
     @Override
-    public List<QuoteModel> get() {
+    public List<Quote> get() {
         try {
-            return jdbc.query("select i.isin, q.bid, q.ask, q.stmp from QOUTES q left join ISINS i on q.isin = i.id",
+            return jdbc.query("select * from QUOTES order by isin, stmp",
                     new QouteMapper());
         } catch (DataAccessException e) {
             return Collections.emptyList();
@@ -43,28 +44,15 @@ public class QuoteDaoImpl implements QuoteDao {
     }
 
     @Override
-    public List<QuoteModel> get(String isin) {
+    public List<Quote> get(String isin) {
         Map<String, String> params = Collections.singletonMap("isin", isin);
         try {
-            return jdbc.query("select i.isin, q.bid, q.ask, q.stmp " +
-                            "from QOUTES q, ISINS i\n" +
-                            "where i.isin = :isin\n" +
-                            "and q.isin = i.id" +
+            return jdbc.query("select * from QUOTES \n" +
+                            " where isin = :isin\n" +
                             " order by stmp",
                     params, new QouteMapper());
         } catch (DataAccessException e) {
             return Collections.emptyList();
-        }
-    }
-
-    @Override
-    public List<String> getIsins () {
-        try {
-            return jdbc.query("select * from ISINS " , (rs, rowNum) -> {
-                return rs.getString("id") + "-" + rs.getString("isin");
-            });
-        } catch (DataAccessException e) {
-            return null;
         }
     }
 }

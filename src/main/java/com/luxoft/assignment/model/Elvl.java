@@ -7,10 +7,10 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ElvlModel {
+public class Elvl {
     private String isin;
     private double elvl;
 
-    public ElvlModel(ElvlModel elvlModel) {
+    public Elvl(Elvl elvl) {
     }
 }

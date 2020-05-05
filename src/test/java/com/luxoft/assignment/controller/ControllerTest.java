@@ -2,7 +2,8 @@ package com.luxoft.assignment.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luxoft.assignment.manager.Manager;
-import com.luxoft.assignment.model.QuoteModel;
+import com.luxoft.assignment.model.Elvl;
+import com.luxoft.assignment.model.Quote;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -33,14 +35,14 @@ public class ControllerTest {
 
     @Test
     public void getAllElvlsTest() throws Exception {
-        when(manager.get()).thenReturn(new CompletableFuture<>());
+        when(manager.get()).thenReturn(Collections.singletonList(new Elvl("RU000A0JX0J2", 100.6)));
         this.mockMvc.perform(get("/elvls")).andDo(print()).andExpect(status().isOk());
         verify(manager).get();
     }
 
     @Test
     public void getElvlByIsinTest() throws Exception {
-        when(manager.get(anyString())).thenReturn(new CompletableFuture<>());
+        when(manager.get(anyString())).thenReturn(new Elvl("RU000A0JX0J2", 100.6));
         this.mockMvc.perform(get("/elvls/RU000A0JX0J2")).andDo(print()).andExpect(status().isOk());
         verify(manager).get("RU000A0JX0J2");
     }
@@ -49,10 +51,10 @@ public class ControllerTest {
     public void addQuote() throws Exception {
         CompletableFuture<Boolean> future
                 = CompletableFuture.supplyAsync(() -> true);
-        when(manager.add(any(QuoteModel.class))).thenReturn(future);
+        when(manager.add(any(Quote.class))).thenReturn(future);
         this.mockMvc.perform(post("/quote").contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(new QuoteModel("RU000A0JX0J2", 100.2, 100.5)))).andDo(print()).andExpect(status().isOk());
-        verify(manager).add(isA(QuoteModel.class));
+                .content(asJsonString(new Quote("RU000A0JX0J2", 100.2, 100.5)))).andDo(print()).andExpect(status().isOk());
+        verify(manager).add(isA(Quote.class));
     }
 
     private static String asJsonString(final Object obj) {

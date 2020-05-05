@@ -1,19 +1,15 @@
 package com.luxoft.assignment.controller;
 
 import com.luxoft.assignment.manager.Manager;
-import com.luxoft.assignment.model.QuoteModel;
-import lombok.SneakyThrows;
+import com.luxoft.assignment.model.Elvl;
+import com.luxoft.assignment.model.Quote;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
+import java.util.Collection;
 
 @RestController
 public class Controller {
@@ -27,28 +23,21 @@ public class Controller {
     }
 
     @GetMapping(value = "/elvls")
-    public @ResponseBody CompletableFuture<ResponseEntity> get() {
-        return manager.get().<ResponseEntity>thenApply(ResponseEntity::ok);
+    public Collection<Elvl> get() {
+        return manager.get();
     }
 
     @GetMapping(value = "/elvls/{isin}")
-    public @ResponseBody CompletableFuture<ResponseEntity> get(@PathVariable("isin") String isin) {
-        return manager.get(isin).<ResponseEntity>thenApply(ResponseEntity::ok);
+    public Elvl get(@PathVariable("isin") String isin) {
+        return manager.get(isin);
     }
 
     @PostMapping(value = "/quote")
-    public void addQuote(@RequestBody QuoteModel quote, HttpServletResponse response) {
-        try {
-           if (!manager.add(quote).get()) {
-               response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-           }
-        } catch (InterruptedException | ExecutionException e) {
+    public void addQuote(@RequestBody Quote quote, HttpServletResponse response) {
+        manager.add(quote).exceptionally(throwable -> {
+            LOGGER.error("Failed to add records: {}", throwable);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        }
+            return false;
+        });
     }
-
-    private static Function<Throwable, ResponseEntity<?>> handleFailure = throwable -> {
-        LOGGER.error("Failed to add records: {}", throwable);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-    };
 }

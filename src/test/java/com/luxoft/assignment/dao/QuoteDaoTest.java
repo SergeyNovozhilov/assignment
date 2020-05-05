@@ -1,8 +1,6 @@
 package com.luxoft.assignment.dao;
 
-import com.luxoft.assignment.domain.Isin;
-import com.luxoft.assignment.model.ElvlModel;
-import com.luxoft.assignment.model.QuoteModel;
+import com.luxoft.assignment.model.Quote;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -18,29 +16,25 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @RunWith(SpringRunner.class)
 @JdbcTest
-@Import({QuoteDaoImpl.class, ElvlDaoImpl.class})
+@Import({QuoteDaoImpl.class})
 public class QuoteDaoTest {
     @Autowired
     private QuoteDao quoteDao;
-    @Autowired
-    private ElvlDao elvlDao;
 
-    private Isin isin;
-    private QuoteModel expected;
+    private Quote expected;
+    private String isin = "RU000A0JX0J2";
     private final double bid = 100.2;
     private final double ask = 100.9;
 
     @Before
     public void setUp() {
-        isin = new Isin("RU000A0JX0J2");
-        elvlDao.add(isin);
-        expected = new QuoteModel(isin.getIsin(), bid, ask);
+        expected = new Quote(isin, bid, ask, null);
         quoteDao.add(expected);
     }
 
     @Test
     public void getQuoteTest() {
-        List<QuoteModel> actual = quoteDao.get(isin.getIsin());
+        List<Quote> actual = quoteDao.get(isin);
 
         assertFalse(actual == null);
         assertTrue(actual.size() == 1);
@@ -50,8 +44,8 @@ public class QuoteDaoTest {
 
     @Test
     public void get2QuoteTest() {
-        quoteDao.add(new QuoteModel(isin.getIsin(), bid, ask));
-        List<QuoteModel> actual = quoteDao.get(isin.getIsin());
+        quoteDao.add(new Quote(isin, bid, ask, null));
+        List<Quote> actual = quoteDao.get(isin);
 
         assertFalse(actual == null);
         assertTrue(actual.size() == 2);
@@ -64,16 +58,14 @@ public class QuoteDaoTest {
 
     @Test
     public void getAllQuoteTest() {
-        Isin newIsin = new Isin("RU000A0JX0J3");
-        elvlDao.add(newIsin);
-        quoteDao.add(new QuoteModel(newIsin.getIsin(), bid, ask));
-        List<QuoteModel> actual = quoteDao.get();
+        quoteDao.add(new Quote("RU000A0JX0J3", bid, ask, null));
+        List<Quote> actual = quoteDao.get();
 
         assertFalse(actual == null);
         assertTrue(actual.size() == 2);
 
-        assertTrue(actual.stream().map(QuoteModel::getIsin).collect(Collectors.toList()).contains("RU000A0JX0J2"));
-        assertTrue(actual.stream().map(QuoteModel::getIsin).collect(Collectors.toList()).contains("RU000A0JX0J3"));
+        assertTrue(actual.stream().map(Quote::getIsin).collect(Collectors.toList()).contains("RU000A0JX0J2"));
+        assertTrue(actual.stream().map(Quote::getIsin).collect(Collectors.toList()).contains("RU000A0JX0J3"));
 
     }
 }

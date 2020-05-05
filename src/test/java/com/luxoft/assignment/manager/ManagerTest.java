@@ -1,11 +1,8 @@
 package com.luxoft.assignment.manager;
 
-import com.luxoft.assignment.dao.ElvlDao;
 import com.luxoft.assignment.dao.QuoteDao;
-import com.luxoft.assignment.domain.Elvl;
-import com.luxoft.assignment.domain.Isin;
-import com.luxoft.assignment.model.ElvlModel;
-import com.luxoft.assignment.model.QuoteModel;
+import com.luxoft.assignment.model.Elvl;
+import com.luxoft.assignment.model.Quote;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -13,13 +10,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.concurrent.ConcurrentMapCache;
-import org.springframework.cache.support.SimpleValueWrapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.luxoft.assignment.cache.CacheConfig.ELVL_CACHE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,29 +26,24 @@ public class ManagerTest {
     @MockBean
     private QuoteDao quoteDao;
     @MockBean
-    private ElvlDao elvlDao;
-    @MockBean
     private CacheManager cacheManager;
 
-    private List<ElvlModel> elvlModelList;
-    private ElvlModel elvlModel;
-    private QuoteModel quoteModel;
+    private List<Elvl> elvlList;
+    private Elvl elvl;
+    private Quote quote;
 
     private Cache cache;
-    private Cache.ValueWrapper wrapper;
 
     @Configuration
     static class AuthorManagerConfiguration {
         @Autowired
         private QuoteDao quoteDao;
         @Autowired
-        private ElvlDao elvlDao;
-        @Autowired
         private CacheManager cacheManager;
 
         @Bean
         public Manager getManagerImpl() {
-            return new ManagerImpl(quoteDao, elvlDao, cacheManager);
+            return new ManagerImpl(quoteDao, cacheManager);
         }
     }
 
@@ -63,91 +54,78 @@ public class ManagerTest {
     public void setUp() {
         cache = mock(Cache.class);
         when(cacheManager.getCache(ELVL_CACHE)).thenReturn(cache);
-        elvlModel = new ElvlModel("RU000A0JX0J3", 100.3);
-        wrapper = mock(SimpleValueWrapper.class);
-        when(cache.get(anyString())).thenReturn(wrapper);
-        when(wrapper.get()).thenReturn(elvlModel);
+        when(cache.getNativeCache()).thenReturn(new ConcurrentHashMap<String, Elvl>());
+        elvl = new Elvl("RU000A0JX0J3", 100.3);
+        when(cache.get(anyString(), any(Class.class))).thenReturn(elvl);
     }
 
     @Test
     public void getAllTest() {
         underTest.get();
-        verify(elvlDao, times(1)).get();
+        verify(cache, times(1)).getNativeCache();
     }
 
     @Test
     public void getTest() {
         String isin = "RU000A0JX0J3";
         underTest.get(isin);
-        verify(elvlDao, times(1)).get(isin);
+        verify(cache, times(1)).get(anyString(), any(Class.class));
     }
 
     @Test
     public void addNewQuoteTest() {
-        quoteModel = new QuoteModel("RU000A0JX0J3", 100.5, 100.8);
+        quote = new Quote("RU000A0JX0J3", 100.5, 100.8);
         when(cache.get(anyString())).thenReturn(null);
-        underTest.add(quoteModel);
-        verify(elvlDao, times(1)).add(any(Isin.class));
-        verify(elvlDao, times(1)).add(any(Elvl.class));
-        verify(quoteDao, times(1)).add(quoteModel);
-        verify(cache, times(1)).put(anyString(), any(ElvlModel.class));
+        underTest.add(quote);
+        verify(quoteDao, times(1)).add(quote);
+        verify(cache, times(1)).put(anyString(), any(Elvl.class));
     }
 
     @Test
     public void addQuoteBidToElvlTest() {
-        quoteModel = new QuoteModel("RU000A0JX0J3", 100.5, 100.8);
-        underTest.add(quoteModel);
+        quote = new Quote("RU000A0JX0J3", 100.5, 100.8);
+        underTest.add(quote);
+        verify(quoteDao, times(1)).add(quote);
+        verify(cache, times(1)).put(anyString(), any(Elvl.class));
 
-        verify(elvlDao, times(1)).update(elvlModel);
-        verify(quoteDao, times(1)).add(quoteModel);
-        verify(cache, times(1)).put(anyString(), any(ElvlModel.class));
-
-        assertEquals(elvlModel.getElvl(), quoteModel.getBid(), 0.01);
+        assertEquals(elvl.getElvl(), quote.getBid(), 0.01);
     }
 
     @Test
     public void addQuoteAskToElvlTest() {
-        quoteModel = new QuoteModel("RU000A0JX0J3", 100.1, 100.2);
-        underTest.add(quoteModel);
+        quote = new Quote("RU000A0JX0J3", 100.1, 100.2);
+        underTest.add(quote);
+        verify(quoteDao, times(1)).add(quote);
+        verify(cache, times(1)).put(anyString(), any(Elvl.class));
 
-        verify(elvlDao, times(1)).update(elvlModel);
-        verify(quoteDao, times(1)).add(quoteModel);
-        verify(cache, times(1)).put(anyString(), any(ElvlModel.class));
-
-        assertEquals(elvlModel.getElvl(), quoteModel.getAsk(), 0.01);
+        assertEquals(elvl.getElvl(), quote.getAsk(), 0.01);
     }
 
     @Test
     public void addQuoteBidNullTest() {
-        quoteModel = new QuoteModel("RU000A0JX0J3", null, 100.2);
-        underTest.add(quoteModel);
+        quote = new Quote("RU000A0JX0J3", null, 100.2);
+        underTest.add(quote);
+        verify(quoteDao, times(1)).add(quote);
+        verify(cache, times(1)).put(anyString(), any(Elvl.class));
 
-        verify(elvlDao, times(1)).update(elvlModel);
-        verify(quoteDao, times(1)).add(quoteModel);
-        verify(cache, times(1)).put(anyString(), any(ElvlModel.class));
-
-        assertEquals(elvlModel.getElvl(), quoteModel.getAsk(), 0.01);
+        assertEquals(elvl.getElvl(), quote.getAsk(), 0.01);
     }
 
     @Test
     public void addQuoteIncorrectIsinTest() {
-        quoteModel = new QuoteModel("RU000A0JX0", 100.5, 100.8);
+        quote = new Quote("RU000A0JX0", 100.5, 100.8);
         when(cache.get(anyString())).thenReturn(null);
-        underTest.add(quoteModel);
-        verify(elvlDao, times(0)).add(any(Isin.class));
-        verify(elvlDao, times(0)).add(any(Elvl.class));
-        verify(quoteDao, times(0)).add(quoteModel);
-        verify(cache, times(0)).put(anyString(), any(ElvlModel.class));
+        underTest.add(quote);
+        verify(quoteDao, times(0)).add(quote);
+        verify(cache, times(0)).put(anyString(), any(Elvl.class));
     }
 
     @Test
     public void addQuoteBidBiggerAskTest() {
-        quoteModel = new QuoteModel("RU000A0JX0", 100.5, 100.2);
+        quote = new Quote("RU000A0JX0", 100.5, 100.2);
         when(cache.get(anyString())).thenReturn(null);
-        underTest.add(quoteModel);
-        verify(elvlDao, times(0)).add(any(Isin.class));
-        verify(elvlDao, times(0)).add(any(Elvl.class));
-        verify(quoteDao, times(0)).add(quoteModel);
-        verify(cache, times(0)).put(anyString(), any(ElvlModel.class));
+        underTest.add(quote);
+        verify(quoteDao, times(0)).add(quote);
+        verify(cache, times(0)).put(anyString(), any(Elvl.class));
     }
 }
