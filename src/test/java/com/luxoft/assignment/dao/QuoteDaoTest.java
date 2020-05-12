@@ -9,6 +9,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,8 +24,8 @@ public class QuoteDaoTest {
 
     private Quote expected;
     private String isin = "RU000A0JX0J2";
-    private final double bid = 100.2;
-    private final double ask = 100.9;
+    private final BigDecimal bid = BigDecimal.valueOf(100.2d);
+    private final BigDecimal ask = BigDecimal.valueOf(100.9d);
 
     @Before
     public void setUp() {
@@ -39,7 +40,7 @@ public class QuoteDaoTest {
         assertFalse(actual == null);
         assertTrue(actual.size() == 1);
         assertEquals(expected.getIsin(), actual.get(0).getIsin());
-        assertEquals(expected.getAsk(), actual.get(0).getAsk(), 0.01);
+        assertEquals(expected.getAsk(), actual.get(0).getAsk());
     }
 
     @Test
@@ -51,7 +52,7 @@ public class QuoteDaoTest {
         assertTrue(actual.size() == 2);
         actual.forEach(q -> {
             assertEquals(expected.getIsin(), q.getIsin());
-            assertEquals(expected.getAsk(), q.getAsk(), 0.01);
+            assertEquals(expected.getAsk(), q.getAsk());
         });
 
     }

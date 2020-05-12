@@ -4,7 +4,6 @@ import com.luxoft.assignment.dao.QuoteDao;
 import com.luxoft.assignment.model.Elvl;
 import com.luxoft.assignment.model.Quote;
 import com.luxoft.assignment.util.Util;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.CacheManager;
@@ -20,8 +19,9 @@ import static com.luxoft.assignment.cache.CacheConfig.ELVL_CACHE;
 @Service
 public class ManagerImpl implements Manager{
     private static final int ISIN_LENGTH = 12;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ManagerImpl.class);
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(Manager.class);
+    private final Object LOCK = new Object();
 
     private QuoteDao quoteDao;
     private CacheManager cacheManager;
@@ -57,28 +57,35 @@ public class ManagerImpl implements Manager{
         return CompletableFuture.supplyAsync(() -> true);
     }
 
-    private synchronized void processQuote(Quote quote) {
+    private void processQuote(Quote quote) {
         Elvl elvl = cacheManager.getCache(ELVL_CACHE).get(quote.getIsin(), Elvl.class);
         if(elvl == null) {
-            elvl = new Elvl();
-            elvl.setIsin(quote.getIsin());
-            Util.setElvl(true, elvl, quote);
-        } else {
+            synchronized (LOCK) {
+                elvl = cacheManager.getCache(ELVL_CACHE).get(quote.getIsin(), Elvl.class);
+                if(elvl == null) {
+                    elvl = new Elvl();
+                    elvl.setIsin(quote.getIsin());
+                    Util.setElvl(true, elvl, quote);
+                    cacheManager.getCache(ELVL_CACHE).put(elvl.getIsin(), elvl);
+                    return;
+                }
+            }
+        }
+        synchronized (elvl) {
             Util.setElvl(false, elvl, quote);
         }
-        cacheManager.getCache(ELVL_CACHE).put(elvl.getIsin(), elvl);
     }
 
     private boolean checkQuote(Quote quote) {
-        String message = "";
+        StringBuilder sb =  new StringBuilder();
         if (quote.getIsin().length() != ISIN_LENGTH) {
-            message = "Isin length is incorrect.";
+            sb.append("Isin length is incorrect.");
         }
-        if (quote.getBid() != null && Double.compare(quote.getBid(), quote.getAsk()) >= 0) {
-            message.concat(" Bid is greater then ask");
+        if (quote.getBid() != null && (quote.getBid().compareTo(quote.getAsk()) >= 0)) {
+            sb.append(" Bid is greater then ask");
         }
-        if (StringUtils.isNotEmpty(message)) {
-            LOGGER.error(message);
+        if (sb.length() != 0) {
+            LOGGER.error(sb.toString());
             return false;
         }
         return true;

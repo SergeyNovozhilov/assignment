@@ -4,13 +4,12 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class Elvl {
     private String isin;
-    private double elvl;
-
-    public Elvl(Elvl elvl) {
-    }
+    private BigDecimal elvl;
 }

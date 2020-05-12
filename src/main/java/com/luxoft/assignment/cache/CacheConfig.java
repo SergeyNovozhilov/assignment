@@ -46,17 +46,14 @@ public class CacheConfig {
                 }
             });
             map.forEach((k, v)-> {
-                Collections.sort(v, new Comparator<Quote>() {
-                    @Override
-                    public int compare(Quote q1, Quote q2) {
-                        if (q1.getStmp().before(q2.getStmp())) {
-                            return -1;
-                        }
-                        if (q1.getStmp().after(q2.getStmp())) {
-                            return 1;
-                        }
-                        return 0;
+                Collections.sort(v, (q1, q2) -> {
+                    if (q1.getStmp().before(q2.getStmp())) {
+                        return -1;
                     }
+                    if (q1.getStmp().after(q2.getStmp())) {
+                        return 1;
+                    }
+                    return 0;
                 });
                 Elvl elvl = new Elvl();
                 elvl.setIsin(k);

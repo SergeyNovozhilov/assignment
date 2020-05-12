@@ -2,7 +2,6 @@ package com.luxoft.assignment.dao;
 
 import com.luxoft.assignment.mapper.QouteMapper;
 import com.luxoft.assignment.model.Quote;
-import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,24 +34,17 @@ public class QuoteDaoImpl implements QuoteDao {
 
     @Override
     public List<Quote> get() {
-        try {
-            return jdbc.query("select * from QUOTES order by isin, stmp",
+        return jdbc.query("select * from QUOTES order by isin, stmp",
                     new QouteMapper());
-        } catch (DataAccessException e) {
-            return Collections.emptyList();
-        }
     }
 
     @Override
     public List<Quote> get(String isin) {
         Map<String, String> params = Collections.singletonMap("isin", isin);
-        try {
-            return jdbc.query("select * from QUOTES \n" +
+        return jdbc.query("select * from QUOTES \n" +
                             " where isin = :isin\n" +
                             " order by stmp",
                     params, new QouteMapper());
-        } catch (DataAccessException e) {
-            return Collections.emptyList();
-        }
+
     }
 }

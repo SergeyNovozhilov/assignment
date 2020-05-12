@@ -13,11 +13,11 @@ public class Util {
             elvl.setElvl(quote.getAsk());
             return;
         }
-        if (Double.compare(quote.getBid(), elvl.getElvl()) > 0) {
+        if (quote.getBid().compareTo(elvl.getElvl()) > 0) {
             elvl.setElvl(quote.getBid());
             return;
         }
-        if (Double.compare(quote.getAsk(), elvl.getElvl()) < 0) {
+        if (quote.getAsk().compareTo(elvl.getElvl()) < 0) {
             elvl.setElvl(quote.getAsk());
         }
     }
